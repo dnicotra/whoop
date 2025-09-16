@@ -8,6 +8,8 @@ This application provides a GUI with:
 - A countdown timer before recording starts
 - 5-second audio recording capability
 - Saves recordings with the provided name
+
+Cross-platform compatible: Windows, macOS, Linux
 """
 
 import tkinter as tk
@@ -18,6 +20,8 @@ import wave
 import sounddevice as sd
 import numpy as np
 import os
+import platform
+import re
 from datetime import datetime
 
 
@@ -35,7 +39,61 @@ class AudioRecorderApp:
         self.recording_data = None
         self.is_recording = False
         
+        # Check audio device availability on startup
+        self.check_audio_devices()
+        
         self.setup_ui()
+        
+    def check_audio_devices(self):
+        """Check if audio input devices are available"""
+        try:
+            devices = sd.query_devices()
+            input_devices = [d for d in devices if d['max_input_channels'] > 0]
+            
+            if not input_devices:
+                # Show warning but don't prevent startup
+                system_name = platform.system()
+                if system_name == "Windows":
+                    warning_msg = ("No audio input devices detected.\n\n"
+                                 "On Windows, make sure:\n"
+                                 "• Your microphone is connected and enabled\n"
+                                 "• Windows has microphone permissions for Python\n" 
+                                 "• Check Windows Sound settings")
+                else:
+                    warning_msg = ("No audio input devices detected.\n"
+                                 "Please check your microphone connection and system audio settings.")
+                
+                messagebox.showwarning("Audio Device Warning", warning_msg)
+                
+        except Exception as e:
+            messagebox.showwarning("Audio System Warning", 
+                                 f"Could not check audio devices: {str(e)}\n"
+                                 "Recording may not work properly.")
+        
+    def sanitize_filename(self, filename):
+        """Sanitize filename for cross-platform compatibility, especially Windows"""
+        # Remove or replace invalid characters for Windows filenames
+        # Invalid characters: < > : " | ? * \ /
+        invalid_chars = r'<>:"|?*\/'
+        for char in invalid_chars:
+            filename = filename.replace(char, '_')
+            
+        # Remove leading/trailing dots and spaces (Windows issue)
+        filename = filename.strip('. ')
+        
+        # Ensure filename is not empty
+        if not filename:
+            filename = "recording"
+            
+        # Windows reserved names
+        reserved_names = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 
+                         'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 
+                         'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
+        
+        if filename.upper() in reserved_names:
+            filename = f"user_{filename}"
+            
+        return filename
         
     def setup_ui(self):
         """Set up the user interface"""
@@ -167,20 +225,24 @@ class AudioRecorderApp:
         try:
             name = self.name_var.get().strip()
             
+            # Sanitize name for cross-platform filename compatibility
+            safe_name = self.sanitize_filename(name) if name else "anonymous"
+            
             # Create filename with timestamp to avoid conflicts
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{name}_{timestamp}.wav"
+            filename = f"{safe_name}_{timestamp}.wav"
             
-            # Ensure recordings directory exists
-            if not os.path.exists("recordings"):
-                os.makedirs("recordings")
+            # Ensure recordings directory exists with cross-platform path handling
+            recordings_dir = os.path.join(os.getcwd(), "recordings")
+            if not os.path.exists(recordings_dir):
+                os.makedirs(recordings_dir, exist_ok=True)
                 
-            filepath = os.path.join("recordings", filename)
+            filepath = os.path.join(recordings_dir, filename)
             
             # Convert float32 to int16 for WAV file
             audio_data = (self.recording_data * 32767).astype(np.int16)
             
-            # Write WAV file
+            # Write WAV file with explicit binary mode for Windows compatibility
             with wave.open(filepath, 'wb') as wf:
                 wf.setnchannels(1)  # Mono
                 wf.setsampwidth(2)  # 2 bytes per sample (int16)
@@ -188,21 +250,54 @@ class AudioRecorderApp:
                 wf.writeframes(audio_data.tobytes())
                 
             self.status_var.set(f"✅ Recording saved as: {filename}")
-            messagebox.showinfo("Success", f"Recording saved successfully!\nFile: {filename}")
+            
+            # Show success message with full path for clarity
+            success_msg = f"Recording saved successfully!\nFile: {filename}\nLocation: {recordings_dir}"
+            messagebox.showinfo("Success", success_msg)
             
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save recording: {str(e)}")
+            error_msg = f"Failed to save recording: {str(e)}"
+            self.status_var.set("❌ Save failed - check console")
+            messagebox.showerror("Error", error_msg)
 
 
 def main():
     """Main function to run the application"""
-    root = tk.Tk()
-    app = AudioRecorderApp(root)
-    
     try:
-        root.mainloop()
-    except KeyboardInterrupt:
-        print("\nApplication closed by user")
+        # Handle Windows-specific DPI awareness for better GUI scaling
+        if platform.system() == "Windows":
+            try:
+                from ctypes import windll
+                windll.shcore.SetProcessDpiAwareness(1)
+            except:
+                pass  # Ignore if not available
+                
+        root = tk.Tk()
+        
+        # Set window icon if available (cross-platform)
+        try:
+            # On Windows, this will work if there's an .ico file
+            # On other platforms, it will be ignored or use a different format
+            root.iconbitmap(default='audio_icon.ico')
+        except:
+            pass  # Ignore if icon file not found
+            
+        app = AudioRecorderApp(root)
+        
+        try:
+            root.mainloop()
+        except KeyboardInterrupt:
+            print("\nApplication closed by user")
+            
+    except Exception as e:
+        # Handle any startup errors gracefully
+        error_msg = f"Failed to start application: {str(e)}"
+        print(error_msg)
+        try:
+            import tkinter.messagebox as mb
+            mb.showerror("Startup Error", error_msg)
+        except:
+            pass
 
 
 if __name__ == "__main__":
