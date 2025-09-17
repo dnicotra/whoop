@@ -33,11 +33,23 @@ A simple Python GUI application using tkinter for recording audio with a countdo
 pip install -r requirements.txt
 ```
 
+If OpenCV installation fails, try the headless version:
+```cmd
+pip install opencv-python-headless
+```
+
 3. **Audio System Setup:**
    - Ensure your microphone is connected and working
    - Check Windows Sound settings (Right-click sound icon → "Open Sound settings")
    - Make sure microphone privacy settings allow desktop apps to access microphone
    - Go to Settings → Privacy & Security → Microphone → "Let desktop apps access your microphone"
+
+4. **Webcam Setup:**
+   - Ensure your webcam is connected and working
+   - Check Windows Camera settings: Settings → Privacy & Security → Camera
+   - Make sure "Let desktop apps access your camera" is enabled
+   - Test your camera with the Windows Camera app first
+   - Close other applications that might be using the camera (Zoom, Skype, Teams)
 
 ### macOS
 
@@ -108,18 +120,28 @@ python audio_recorder.py
 **"No webcam detected" warning:**
 - Ensure your webcam is connected and not in use by other applications
 - Check Windows camera permissions: Settings → Privacy & Security → Camera
+- Make sure "Let desktop apps access your camera" is enabled
 - Test your camera with the Windows Camera app first
+- Try running the application as administrator if permission issues persist
+
+**OpenCV/Video recording issues:**
+- If OpenCV installation fails: `pip install opencv-python-headless`
+- For older Windows versions, try: `pip install opencv-python==4.5.5.64`
+- Check if Microsoft Visual C++ Redistributable is installed
+- Restart the application after installing OpenCV
 
 ### General Issues
 
 **"ModuleNotFoundError" errors:**
-- For pip-installed packages: `pip install --upgrade sounddevice`
-- For system packages on Linux: `sudo apt install python3-opencv python3-numpy`
+- For Windows: `pip install --upgrade sounddevice opencv-python numpy`
+- For Linux: `sudo apt install python3-opencv python3-numpy`
+- Try creating a new virtual environment if issues persist
 
 **Webcam issues:**
-- Close other applications that might be using the camera (Zoom, Skype, etc.)
+- Close other applications that might be using the camera (Zoom, Skype, Teams, etc.)
 - Try unplugging and reconnecting USB cameras
 - Check camera permissions in your operating system settings
+- On Windows, check Device Manager for camera driver issues
 
 **Audio latency or quality issues:**
 - Close other audio applications

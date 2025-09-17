@@ -1,6 +1,3 @@
 sounddevice>=0.5.2
-# Note: This application also requires:
-# - OpenCV (install with: sudo apt install python3-opencv)
-# - NumPy (install with: sudo apt install python3-numpy)
-# - Tkinter (install with: sudo apt install python3-tk)
-# - PortAudio (install with: sudo apt install portaudio19-dev)
+opencv-python>=4.8.0
+numpy>=1.21.0

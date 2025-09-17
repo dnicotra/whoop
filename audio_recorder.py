@@ -89,14 +89,39 @@ class AudioRecorderApp:
                 cap.release()
             else:
                 self.webcam_available = False
-                messagebox.showwarning("Webcam Warning", 
-                                     "No webcam detected or webcam is in use by another application.\n"
-                                     "Video recording will be disabled.")
+                
+                # Provide Windows-specific guidance
+                if platform.system() == "Windows":
+                    warning_msg = ("No webcam detected or webcam is in use by another application.\n\n"
+                                 "On Windows, make sure:\n"
+                                 "• Your webcam is connected and recognized by Windows\n"
+                                 "• Windows has camera permissions for Python applications\n"
+                                 "• Go to Settings → Privacy & Security → Camera → Allow desktop apps\n"
+                                 "• Close other apps that might be using the camera (Zoom, Skype, Teams)\n"
+                                 "• Test your camera with the Windows Camera app first\n\n"
+                                 "Video recording will be disabled - audio recording will continue to work.")
+                else:
+                    warning_msg = ("No webcam detected or webcam is in use by another application.\n"
+                                 "Video recording will be disabled.")
+                
+                messagebox.showwarning("Webcam Warning", warning_msg)
         except Exception as e:
             self.webcam_available = False
-            messagebox.showwarning("Webcam System Warning", 
-                                 f"Could not check webcam devices: {str(e)}\n"
-                                 "Video recording will be disabled.")
+            
+            # Enhanced error message for Windows
+            if platform.system() == "Windows":
+                error_msg = (f"Could not check webcam devices: {str(e)}\n\n"
+                           "This might be due to:\n"
+                           "• Missing or incompatible camera drivers\n"
+                           "• Windows camera privacy settings\n"
+                           "• OpenCV installation issues\n\n"
+                           "Try running: pip install --upgrade opencv-python\n"
+                           "Video recording will be disabled.")
+            else:
+                error_msg = (f"Could not check webcam devices: {str(e)}\n"
+                           "Video recording will be disabled.")
+            
+            messagebox.showwarning("Webcam System Warning", error_msg)
         
     def sanitize_filename(self, filename):
         """Sanitize filename for cross-platform compatibility, especially Windows"""
@@ -274,12 +299,25 @@ class AudioRecorderApp:
             # Initialize webcam
             self.webcam = cv2.VideoCapture(0)
             if not self.webcam.isOpened():
+                print("Warning: Could not open webcam for recording")
                 return
+            
+            # Set webcam properties for better Windows compatibility
+            if platform.system() == "Windows":
+                # Set buffer size to reduce latency on Windows
+                self.webcam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                # Set frame format for better compatibility
+                self.webcam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
             
             # Get webcam properties
             fps = 30  # Frame rate
             width = int(self.webcam.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(self.webcam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            
+            # Ensure we have valid dimensions
+            if width <= 0 or height <= 0:
+                width, height = 640, 480  # Default resolution
+                print(f"Warning: Invalid webcam resolution, using default {width}x{height}")
             
             # Create video filename
             name = self.name_var.get().strip()
@@ -295,8 +333,35 @@ class AudioRecorderApp:
             video_filepath = os.path.join(recordings_dir, video_filename)
             
             # Initialize video writer (MP4 codec, no audio)
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            self.video_writer = cv2.VideoWriter(video_filepath, fourcc, fps, (width, height))
+            # Use Windows-compatible codec selection
+            if platform.system() == "Windows":
+                # Try different codecs for better Windows compatibility
+                codecs_to_try = ['mp4v', 'XVID', 'MJPG', 'WMV2']
+                self.video_writer = None
+                
+                for codec_name in codecs_to_try:
+                    try:
+                        fourcc = cv2.VideoWriter_fourcc(*codec_name)
+                        self.video_writer = cv2.VideoWriter(video_filepath, fourcc, fps, (width, height))
+                        if self.video_writer.isOpened():
+                            break
+                        else:
+                            self.video_writer.release()
+                    except:
+                        continue
+                
+                if not self.video_writer or not self.video_writer.isOpened():
+                    print("Warning: Could not initialize video writer with any codec")
+                    return
+            else:
+                # Use default codec for other platforms
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                self.video_writer = cv2.VideoWriter(video_filepath, fourcc, fps, (width, height))
+            
+            # Verify video writer is working
+            if not self.video_writer.isOpened():
+                print("Warning: Video writer could not be initialized")
+                return
             
             # Record video for the duration
             start_time = time.time()
@@ -308,10 +373,23 @@ class AudioRecorderApp:
                 if ret:
                     self.video_writer.write(frame)
                     frame_count += 1
+                else:
+                    # Handle frame read failures
+                    print("Warning: Failed to read frame from webcam")
+                    break
                 time.sleep(1.0 / fps)  # Maintain frame rate
             
+            print(f"Recorded {frame_count} video frames")
+            
         except Exception as e:
-            print(f"Error during webcam recording: {e}")
+            error_msg = f"Error during webcam recording: {e}"
+            print(error_msg)
+            # On Windows, provide additional troubleshooting info
+            if platform.system() == "Windows":
+                print("Windows troubleshooting:")
+                print("- Check camera permissions in Windows Settings")
+                print("- Close other apps using the camera")
+                print("- Try running as administrator")
         finally:
             # Cleanup webcam resources
             if self.video_writer:
