@@ -57,13 +57,14 @@ def validate_audio_recorder():
                 methods.append(node.name)
                 
         required_methods = ['setup_ui', 'start_recording_process', 'recording_thread', 'save_recording', 
-                          'play_last_recording', 'playback_thread']
+                          'play_last_recording', 'playback_thread', 'update_recordings_listbox', 
+                          'play_selected_recording', 'delete_selected_recording', 'load_existing_recordings']
         missing_methods = [method for method in required_methods if method not in methods]
         if missing_methods:
             print(f"❌ Missing methods: {missing_methods}")
             return False
         else:
-            print("✅ All required methods found (including new playback methods)")
+            print("✅ All required methods found (including new playback and recording management methods)")
             
         # Check for key features in content
         required_features = [
@@ -77,7 +78,9 @@ def validate_audio_recorder():
             'wave.open',
             'messagebox',
             'is_playing',  # New playback state
-            'last_recording_path'  # New playback feature
+            'last_recording_path',  # New playback feature
+            'recordings_list',  # New recording list feature
+            'recordings_listbox'  # New UI component
         ]
         
         missing_features = []
@@ -89,9 +92,9 @@ def validate_audio_recorder():
             print(f"❌ Missing features: {missing_features}")
             return False
         else:
-            print("✅ All required features found (including new playback and configurable duration)")
+            print("✅ All required features found (including playback, configurable duration, and recording management)")
             
-        print("✅ audio_recorder.py validation passed with new features")
+        print("✅ audio_recorder.py validation passed with enhanced features")
         return True
         
     except Exception as e:
@@ -200,6 +203,8 @@ def main():
         print("- 3-second countdown functionality")
         print("- Audio recording with sounddevice and progress feedback")
         print("- Playback functionality for recorded files")
+        print("- Recording list and file management")
+        print("- Delete recordings functionality")
         print("- File saving with user-provided names and timestamps")
         print("- Proper error handling and user feedback")
         print("- Complete documentation and requirements")

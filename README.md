@@ -8,6 +8,8 @@ A simple Python GUI application using tkinter for recording audio with a countdo
 - **Configurable recording duration (1-30 seconds)**
 - 3-second countdown before recording starts
 - **Audio playback of recorded files**
+- **Recording list with file management**
+- **Delete recordings functionality**
 - Saves recordings as WAV files with the provided name and timestamp
 - Creates a `recordings/` directory for storing audio files
 - **Enhanced user interface with intuitive controls**
@@ -81,6 +83,9 @@ python audio_recorder.py
 5. **Speak for the selected duration when recording starts**
 6. The recording will be saved automatically in the `recordings/` directory
 7. **Click "Play Last Recording" to listen to your recording**
+8. **View all recordings in the list below**
+9. **Double-click any recording in the list to play it**
+10. **Select recordings and use "Delete Selected" to remove unwanted files**
 
 ## Troubleshooting
 
@@ -153,7 +158,15 @@ The application has been tested for Windows compatibility and includes specific 
 - Clear visual feedback during recording
 
 ### 🎨 Enhanced User Interface
-- Larger window (450x400) for better layout
+- Larger window (600x500) for better layout
 - Side-by-side record and playback buttons
 - Clear duration selection with spinbox control
 - Updated instructions reflecting all features
+
+### 📂 Recording Management
+- View all recordings in an organized list
+- See recording names and timestamps
+- Double-click recordings to play them instantly
+- Select and delete unwanted recordings
+- Automatic loading of existing recordings on startup
+- Safe deletion with confirmation dialogs

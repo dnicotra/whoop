@@ -29,7 +29,7 @@ class AudioRecorderApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Audio Recorder")
-        self.root.geometry("450x400")
+        self.root.geometry("600x500")
         self.root.resizable(False, False)
         
         # Recording parameters
@@ -40,11 +40,15 @@ class AudioRecorderApp:
         self.is_recording = False
         self.is_playing = False
         self.last_recording_path = None
+        self.recordings_list = []  # Store list of recorded files
         
         # Check audio device availability on startup
         self.check_audio_devices()
         
         self.setup_ui()
+        
+        # Load existing recordings
+        self.load_existing_recordings()
         
     def check_audio_devices(self):
         """Check if audio input devices are available"""
@@ -160,6 +164,41 @@ class AudioRecorderApp:
         self.progress = ttk.Progressbar(main_frame, length=300, mode='determinate')
         self.progress.grid(row=6, column=0, columnspan=2, pady=(0, 10))
         
+        # Recordings list
+        recordings_label = ttk.Label(main_frame, text="Previous Recordings:", 
+                                    font=("Arial", 10, "bold"))
+        recordings_label.grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        
+        # Create frame for listbox and scrollbar
+        list_frame = ttk.Frame(main_frame)
+        list_frame.grid(row=8, column=0, columnspan=2, pady=(0, 10), sticky=(tk.W, tk.E))
+        list_frame.columnconfigure(0, weight=1)
+        
+        # Listbox for recordings
+        self.recordings_listbox = tk.Listbox(list_frame, height=4, font=("Arial", 9))
+        self.recordings_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        self.recordings_listbox.bind('<Double-Button-1>', self.on_recording_double_click)
+        
+        # Scrollbar for listbox
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical")
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.recordings_listbox.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=self.recordings_listbox.yview)
+        
+        # Buttons for recording management
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.grid(row=9, column=0, columnspan=2, pady=(0, 10))
+        
+        self.play_selected_button = ttk.Button(buttons_frame, text="Play Selected", 
+                                             command=self.play_selected_recording, 
+                                             state='disabled')
+        self.play_selected_button.grid(row=0, column=0, padx=(0, 5))
+        
+        self.delete_selected_button = ttk.Button(buttons_frame, text="Delete Selected", 
+                                               command=self.delete_selected_recording, 
+                                               state='disabled')  
+        self.delete_selected_button.grid(row=0, column=1, padx=(5, 0))
+        
         # Instructions
         instructions = ("Instructions:\n"
                        "1. Enter your name in the text field\n"
@@ -168,12 +207,17 @@ class AudioRecorderApp:
                        "4. Wait for the countdown to finish\n"
                        "5. Recording will start automatically\n"
                        "6. File will be saved with your name\n"
-                       "7. Use 'Play Last Recording' to listen")
+                       "7. Use 'Play Last Recording' to listen\n"
+                       "8. Double-click recordings in list to play\n"
+                       "9. Select and delete unwanted recordings")
         
         instructions_label = ttk.Label(main_frame, text=instructions, 
                                       font=("Arial", 9), 
                                       justify=tk.LEFT)
-        instructions_label.grid(row=7, column=0, columnspan=2, pady=(20, 0))
+        instructions_label.grid(row=10, column=0, columnspan=2, pady=(10, 0))
+        
+        # Enable listbox selection monitoring
+        self.recordings_listbox.bind('<<ListboxSelect>>', self.on_recording_select)
         
     def start_recording_process(self):
         """Start the recording process with countdown"""
@@ -278,6 +322,14 @@ class AudioRecorderApp:
             self.last_recording_path = filepath
             self.playback_button.config(state='normal')
             
+            # Add to recordings list
+            self.recordings_list.append({
+                'filename': filename,
+                'filepath': filepath,
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            self.update_recordings_listbox()
+            
             # Show success message with full path for clarity
             success_msg = f"Recording saved successfully!\nFile: {filename}\nLocation: {recordings_dir}"
             messagebox.showinfo("Success", success_msg)
@@ -322,7 +374,7 @@ class AudioRecorderApp:
             # Start playback in a separate thread
             playback_thread = threading.Thread(
                 target=self.playback_thread, 
-                args=(audio_data, sample_rate)
+                args=(audio_data, sample_rate, None)
             )
             playback_thread.daemon = True
             playback_thread.start()
@@ -330,13 +382,18 @@ class AudioRecorderApp:
         except Exception as e:
             messagebox.showerror("Error", f"Playback failed: {str(e)}")
             
-    def playback_thread(self, audio_data, sample_rate):
+    def playback_thread(self, audio_data, sample_rate, filename=None):
         """Handle audio playback in a separate thread"""
         try:
             self.is_playing = True
             self.playback_button.config(state='disabled')
             self.record_button.config(state='disabled')
-            self.status_var.set("🔊 Playing recording...")
+            self.play_selected_button.config(state='disabled')
+            
+            if filename:
+                self.status_var.set(f"🔊 Playing: {filename}")
+            else:
+                self.status_var.set("🔊 Playing recording...")
             
             # Play the audio
             sd.play(audio_data, samplerate=sample_rate)
@@ -349,7 +406,148 @@ class AudioRecorderApp:
             self.is_playing = False
             self.playback_button.config(state='normal')
             self.record_button.config(state='normal')
+            # Re-enable selected buttons if there's a selection
+            if self.recordings_listbox.curselection():
+                self.play_selected_button.config(state='normal')
             self.status_var.set("Enter your name and click 'Start Recording'")
+            
+    def update_recordings_listbox(self):
+        """Update the recordings listbox with current recordings"""
+        self.recordings_listbox.delete(0, tk.END)
+        for recording in self.recordings_list:
+            display_text = f"{recording['filename']} ({recording['timestamp']})"
+            self.recordings_listbox.insert(tk.END, display_text)
+            
+    def on_recording_select(self, event):
+        """Handle recording selection in listbox"""
+        selection = self.recordings_listbox.curselection()
+        if selection:
+            self.play_selected_button.config(state='normal')
+            self.delete_selected_button.config(state='normal')
+        else:
+            self.play_selected_button.config(state='disabled')
+            self.delete_selected_button.config(state='disabled')
+            
+    def on_recording_double_click(self, event):
+        """Handle double-click on recording in listbox"""
+        selection = self.recordings_listbox.curselection()
+        if selection:
+            self.play_selected_recording()
+            
+    def play_selected_recording(self):
+        """Play the selected recording from the list"""
+        selection = self.recordings_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a recording to play")
+            return
+            
+        if self.is_playing:
+            messagebox.showinfo("Info", "Already playing a recording!")
+            return
+            
+        try:
+            recording_index = selection[0]
+            recording = self.recordings_list[recording_index]
+            filepath = recording['filepath']
+            
+            if not os.path.exists(filepath):
+                messagebox.showerror("Error", f"Recording file not found: {recording['filename']}")
+                return
+                
+            # Read the WAV file
+            with wave.open(filepath, 'rb') as wf:
+                frames = wf.readframes(wf.getnframes())
+                sample_rate = wf.getframerate()
+                channels = wf.getnchannels()
+                sampwidth = wf.getsampwidth()
+                
+            # Convert bytes to numpy array
+            if sampwidth == 2:  # 16-bit
+                audio_data = np.frombuffer(frames, dtype=np.int16)
+            else:
+                messagebox.showerror("Error", "Unsupported audio format for playback")
+                return
+                
+            # Convert to float32 for sounddevice
+            audio_data = audio_data.astype(np.float32) / 32767.0
+            
+            # Reshape for mono/stereo
+            if channels == 2:
+                audio_data = audio_data.reshape(-1, 2)
+                
+            # Start playback in a separate thread
+            playback_thread = threading.Thread(
+                target=self.playback_thread, 
+                args=(audio_data, sample_rate, recording['filename'])
+            )
+            playback_thread.daemon = True
+            playback_thread.start()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Playback failed: {str(e)}")
+            
+    def delete_selected_recording(self):
+        """Delete the selected recording"""
+        selection = self.recordings_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a recording to delete")
+            return
+            
+        recording_index = selection[0]
+        recording = self.recordings_list[recording_index]
+        
+        # Confirm deletion
+        response = messagebox.askyesno("Confirm Delete", 
+                                     f"Are you sure you want to delete '{recording['filename']}'?\n"
+                                     "This action cannot be undone.")
+        if not response:
+            return
+            
+        try:
+            # Delete the file
+            if os.path.exists(recording['filepath']):
+                os.remove(recording['filepath'])
+                
+            # Remove from list
+            self.recordings_list.pop(recording_index)
+            self.update_recordings_listbox()
+            
+            # Update button states
+            self.play_selected_button.config(state='disabled')
+            self.delete_selected_button.config(state='disabled')
+            
+            messagebox.showinfo("Success", f"'{recording['filename']}' has been deleted")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete recording: {str(e)}")
+            
+    def load_existing_recordings(self):
+        """Load existing recordings from the recordings directory"""
+        recordings_dir = os.path.join(os.getcwd(), "recordings")
+        if not os.path.exists(recordings_dir):
+            return
+            
+        try:
+            # Get all WAV files in the recordings directory
+            wav_files = [f for f in os.listdir(recordings_dir) if f.endswith('.wav')]
+            wav_files.sort(key=lambda x: os.path.getmtime(os.path.join(recordings_dir, x)))
+            
+            for filename in wav_files:
+                filepath = os.path.join(recordings_dir, filename)
+                # Get file modification time for timestamp
+                mtime = os.path.getmtime(filepath)
+                timestamp = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                
+                self.recordings_list.append({
+                    'filename': filename,
+                    'filepath': filepath,
+                    'timestamp': timestamp
+                })
+                
+            self.update_recordings_listbox()
+            
+        except Exception as e:
+            print(f"Warning: Could not load existing recordings: {e}")
 
 
 def main():
