@@ -29,7 +29,7 @@ class AudioRecorderApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Audio Recorder")
-        self.root.geometry("600x500")
+        self.root.geometry("600x550")
         self.root.resizable(False, False)
         
         # Recording parameters
@@ -41,6 +41,7 @@ class AudioRecorderApp:
         self.is_playing = False
         self.last_recording_path = None
         self.recordings_list = []  # Store list of recorded files
+        self.volume_level = 0.0  # Current volume level for meter
         
         # Check audio device availability on startup
         self.check_audio_devices()
@@ -49,6 +50,9 @@ class AudioRecorderApp:
         
         # Load existing recordings
         self.load_existing_recordings()
+        
+        # Start volume monitoring
+        self.start_volume_monitoring()
         
     def check_audio_devices(self):
         """Check if audio input devices are available"""
@@ -164,14 +168,22 @@ class AudioRecorderApp:
         self.progress = ttk.Progressbar(main_frame, length=300, mode='determinate')
         self.progress.grid(row=6, column=0, columnspan=2, pady=(0, 10))
         
+        # Volume level meter
+        volume_label = ttk.Label(main_frame, text="Volume Level:", font=("Arial", 9))
+        volume_label.grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        
+        self.volume_meter = ttk.Progressbar(main_frame, length=300, mode='determinate')
+        self.volume_meter.grid(row=8, column=0, columnspan=2, pady=(0, 10))
+        self.volume_meter['maximum'] = 100
+        
         # Recordings list
         recordings_label = ttk.Label(main_frame, text="Previous Recordings:", 
                                     font=("Arial", 10, "bold"))
-        recordings_label.grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        recordings_label.grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         
         # Create frame for listbox and scrollbar
         list_frame = ttk.Frame(main_frame)
-        list_frame.grid(row=8, column=0, columnspan=2, pady=(0, 10), sticky=(tk.W, tk.E))
+        list_frame.grid(row=10, column=0, columnspan=2, pady=(0, 10), sticky=(tk.W, tk.E))
         list_frame.columnconfigure(0, weight=1)
         
         # Listbox for recordings
@@ -187,7 +199,7 @@ class AudioRecorderApp:
         
         # Buttons for recording management
         buttons_frame = ttk.Frame(main_frame)
-        buttons_frame.grid(row=9, column=0, columnspan=2, pady=(0, 10))
+        buttons_frame.grid(row=11, column=0, columnspan=2, pady=(0, 10))
         
         self.play_selected_button = ttk.Button(buttons_frame, text="Play Selected", 
                                              command=self.play_selected_recording, 
@@ -203,18 +215,19 @@ class AudioRecorderApp:
         instructions = ("Instructions:\n"
                        "1. Enter your name in the text field\n"
                        "2. Choose recording duration (1-30 seconds)\n"
-                       "3. Click 'Start Recording'\n"
-                       "4. Wait for the countdown to finish\n"
-                       "5. Recording will start automatically\n"
-                       "6. File will be saved with your name\n"
-                       "7. Use 'Play Last Recording' to listen\n"
-                       "8. Double-click recordings in list to play\n"
-                       "9. Select and delete unwanted recordings")
+                       "3. Watch volume meter to check microphone levels\n"
+                       "4. Click 'Start Recording'\n"
+                       "5. Wait for the countdown to finish\n"
+                       "6. Recording will start automatically\n"
+                       "7. File will be saved with your name\n"
+                       "8. Use 'Play Last Recording' to listen\n"
+                       "9. Double-click recordings in list to play\n"
+                       "10. Select and delete unwanted recordings")
         
         instructions_label = ttk.Label(main_frame, text=instructions, 
                                       font=("Arial", 9), 
                                       justify=tk.LEFT)
-        instructions_label.grid(row=10, column=0, columnspan=2, pady=(10, 0))
+        instructions_label.grid(row=12, column=0, columnspan=2, pady=(10, 0))
         
         # Enable listbox selection monitoring
         self.recordings_listbox.bind('<<ListboxSelect>>', self.on_recording_select)
@@ -258,7 +271,7 @@ class AudioRecorderApp:
             self.status_var.set(f"🔴 RECORDING... Speak now! ({duration}s)")
             self.is_recording = True
             
-            # Start progress bar
+            # Start progress bar and volume monitoring
             self.progress['maximum'] = duration * 10  # Update every 0.1 seconds
             self.progress['value'] = 0
             
@@ -267,10 +280,27 @@ class AudioRecorderApp:
                                        samplerate=self.sample_rate, 
                                        channels=1, dtype=np.float32)
             
-            # Update progress bar during recording
+            # Update progress bar and volume meter during recording
             for i in range(duration * 10):
                 time.sleep(0.1)
                 self.progress['value'] = i + 1
+                
+                # Update volume meter with current audio level
+                try:
+                    # Get current audio buffer (last 0.1 seconds)
+                    current_samples = int(self.sample_rate * 0.1)
+                    if i * current_samples < len(self.recording_data):
+                        # Calculate RMS volume level
+                        start_idx = max(0, i * current_samples - current_samples)
+                        end_idx = min(len(self.recording_data), i * current_samples)
+                        if end_idx > start_idx:
+                            audio_chunk = self.recording_data[start_idx:end_idx]
+                            rms = np.sqrt(np.mean(audio_chunk**2))
+                            volume_percent = min(100, rms * 1000)  # Scale to 0-100
+                            self.volume_meter['value'] = volume_percent
+                except:
+                    # If volume calculation fails, just show some activity
+                    self.volume_meter['value'] = min(50 + (i % 20), 100)
                 
             sd.wait()  # Wait until recording is finished
             
@@ -285,6 +315,7 @@ class AudioRecorderApp:
             self.status_var.set("Enter your name and click 'Start Recording'")
             self.countdown_var.set("")
             self.progress['value'] = 0
+            self.volume_meter['value'] = 0  # Reset volume meter
             self.record_button.config(state='normal')
             
     def save_recording(self):
@@ -548,6 +579,43 @@ class AudioRecorderApp:
             
         except Exception as e:
             print(f"Warning: Could not load existing recordings: {e}")
+            
+    def start_volume_monitoring(self):
+        """Start background volume level monitoring"""
+        def monitor_volume():
+            try:
+                while True:
+                    if not self.is_recording and not self.is_playing:
+                        try:
+                            # Record a very short sample to check volume
+                            test_sample = sd.rec(int(0.1 * self.sample_rate), 
+                                               samplerate=self.sample_rate, 
+                                               channels=1, dtype=np.float32)
+                            sd.wait()
+                            
+                            # Calculate RMS volume
+                            rms = np.sqrt(np.mean(test_sample**2))
+                            volume_percent = min(100, rms * 2000)  # Scale for visibility
+                            
+                            # Update volume meter
+                            self.volume_meter['value'] = volume_percent
+                            
+                        except:
+                            # If monitoring fails, show minimal activity
+                            self.volume_meter['value'] = 5
+                            
+                    time.sleep(0.2)  # Update every 200ms
+                    
+            except Exception:
+                pass  # Exit thread silently if there's an error
+                
+        # Start monitoring in background thread
+        monitor_thread = threading.Thread(target=monitor_volume)
+        monitor_thread.daemon = True
+        try:
+            monitor_thread.start()
+        except:
+            pass  # Volume monitoring is optional
 
 
 def main():

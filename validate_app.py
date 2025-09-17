@@ -58,13 +58,14 @@ def validate_audio_recorder():
                 
         required_methods = ['setup_ui', 'start_recording_process', 'recording_thread', 'save_recording', 
                           'play_last_recording', 'playback_thread', 'update_recordings_listbox', 
-                          'play_selected_recording', 'delete_selected_recording', 'load_existing_recordings']
+                          'play_selected_recording', 'delete_selected_recording', 'load_existing_recordings',
+                          'start_volume_monitoring']
         missing_methods = [method for method in required_methods if method not in methods]
         if missing_methods:
             print(f"❌ Missing methods: {missing_methods}")
             return False
         else:
-            print("✅ All required methods found (including new playback and recording management methods)")
+            print("✅ All required methods found (including playback, recording management, and volume monitoring)")
             
         # Check for key features in content
         required_features = [
@@ -80,7 +81,9 @@ def validate_audio_recorder():
             'is_playing',  # New playback state
             'last_recording_path',  # New playback feature
             'recordings_list',  # New recording list feature
-            'recordings_listbox'  # New UI component
+            'recordings_listbox',  # New UI component
+            'volume_level',  # New volume monitoring
+            'volume_meter'  # New volume meter UI
         ]
         
         missing_features = []
@@ -92,9 +95,9 @@ def validate_audio_recorder():
             print(f"❌ Missing features: {missing_features}")
             return False
         else:
-            print("✅ All required features found (including playback, configurable duration, and recording management)")
+            print("✅ All required features found (including playback, configurable duration, recording management, and volume monitoring)")
             
-        print("✅ audio_recorder.py validation passed with enhanced features")
+        print("✅ audio_recorder.py validation passed with all enhanced features")
         return True
         
     except Exception as e:
@@ -204,7 +207,8 @@ def main():
         print("- Audio recording with sounddevice and progress feedback")
         print("- Playback functionality for recorded files")
         print("- Recording list and file management")
-        print("- Delete recordings functionality")
+        print("- Delete recordings functionality")  
+        print("- Volume level visualization and monitoring")
         print("- File saving with user-provided names and timestamps")
         print("- Proper error handling and user feedback")
         print("- Complete documentation and requirements")

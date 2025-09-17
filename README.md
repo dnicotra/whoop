@@ -7,6 +7,7 @@ A simple Python GUI application using tkinter for recording audio with a countdo
 - Simple GUI with name input field and recording button
 - **Configurable recording duration (1-30 seconds)**
 - 3-second countdown before recording starts
+- **Real-time volume level monitoring**
 - **Audio playback of recorded files**
 - **Recording list with file management**
 - **Delete recordings functionality**
@@ -78,14 +79,15 @@ python audio_recorder.py
 ### How to use:
 1. Enter your name in the text field
 2. **Choose your preferred recording duration (1-30 seconds)**
-3. Click "Start Recording"
-4. Wait for the 3-second countdown
-5. **Speak for the selected duration when recording starts**
-6. The recording will be saved automatically in the `recordings/` directory
-7. **Click "Play Last Recording" to listen to your recording**
-8. **View all recordings in the list below**
-9. **Double-click any recording in the list to play it**
-10. **Select recordings and use "Delete Selected" to remove unwanted files**
+3. **Watch the volume meter to ensure your microphone is working**
+4. Click "Start Recording"
+5. Wait for the 3-second countdown
+6. **Speak for the selected duration when recording starts**
+7. The recording will be saved automatically in the `recordings/` directory
+8. **Click "Play Last Recording" to listen to your recording**
+9. **View all recordings in the list below**
+10. **Double-click any recording in the list to play it**
+11. **Select recordings and use "Delete Selected" to remove unwanted files**
 
 ## Troubleshooting
 
@@ -170,3 +172,10 @@ The application has been tested for Windows compatibility and includes specific 
 - Select and delete unwanted recordings
 - Automatic loading of existing recordings on startup
 - Safe deletion with confirmation dialogs
+
+### 📊 Volume Level Monitoring
+- Real-time volume meter shows microphone input levels
+- Visual feedback before and during recording
+- Helps ensure optimal recording conditions
+- Background monitoring when not recording
+- Automatic scaling for different microphone sensitivities
