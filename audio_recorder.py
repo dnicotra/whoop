@@ -229,6 +229,30 @@ class AudioRecorderApp:
         # Disable the button and start the process
         self.record_button.config(state='disabled')
         
+        # Pre-initialize webcam if available to avoid delay after countdown
+        if self.webcam_available:
+            try:
+                self.webcam = cv2.VideoCapture(0)
+                if not self.webcam.isOpened():
+                    print("Warning: Could not open webcam, falling back to audio-only")
+                    self.webcam_available = False
+                    if self.webcam:
+                        self.webcam.release()
+                        self.webcam = None
+                else:
+                    # Set webcam properties for better Windows compatibility
+                    if platform.system() == "Windows":
+                        # Set buffer size to reduce latency on Windows
+                        self.webcam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                        # Set frame format for better compatibility
+                        self.webcam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            except Exception as e:
+                print(f"Warning: Webcam initialization failed: {e}")
+                self.webcam_available = False
+                if self.webcam:
+                    self.webcam.release()
+                    self.webcam = None
+        
         # Start countdown and recording in a separate thread
         thread = threading.Thread(target=self.recording_thread)
         thread.daemon = True
@@ -277,23 +301,20 @@ class AudioRecorderApp:
             self.progress['value'] = 0
             self.record_button.config(state='normal')
             
+            # Cleanup webcam if it was initialized for this recording
+            if hasattr(self, 'webcam') and self.webcam:
+                self.webcam.release()
+                self.webcam = None
+            
     def record_video_with_audio(self):
         """Record video and audio synchronously to avoid timing issues"""
         try:
-            # Initialize webcam
-            self.webcam = cv2.VideoCapture(0)
-            if not self.webcam.isOpened():
-                print("Warning: Could not open webcam for recording")
+            # Webcam should already be initialized in start_recording_process
+            if not self.webcam or not self.webcam.isOpened():
+                print("Warning: Webcam not available for recording")
                 # Fall back to audio only
                 self.record_audio_only()
                 return
-            
-            # Set webcam properties for better Windows compatibility
-            if platform.system() == "Windows":
-                # Set buffer size to reduce latency on Windows
-                self.webcam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                # Set frame format for better compatibility
-                self.webcam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
             
             # Get webcam properties
             fps = 30  # Frame rate
