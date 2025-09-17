@@ -152,6 +152,69 @@ def test_file_operations():
         print(f"❌ File operations test failed: {e}")
         return False
 
+def test_webcam_compatibility():
+    """Test webcam and OpenCV compatibility on Windows"""
+    print("\nTesting webcam and OpenCV compatibility...")
+    
+    try:
+        import cv2
+        print(f"✅ OpenCV version: {cv2.__version__}")
+        
+        # Test webcam access
+        cap = cv2.VideoCapture(0)
+        if cap.isOpened():
+            print("✅ Webcam access successful")
+            
+            # Test basic properties
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            print(f"✅ Webcam resolution: {width}x{height}")
+            
+            # Test frame capture
+            ret, frame = cap.read()
+            if ret:
+                print("✅ Frame capture successful")
+            else:
+                print("⚠️ Frame capture failed")
+            
+            cap.release()
+        else:
+            print("⚠️ No webcam detected or webcam in use")
+        
+        # Test video writer codecs
+        codecs_to_test = ['mp4v', 'XVID', 'MJPG', 'WMV2']
+        working_codecs = []
+        
+        for codec_name in codecs_to_test:
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*codec_name)
+                # Test with a dummy filename
+                temp_path = os.path.join(os.getcwd(), f"test_{codec_name}.mp4")
+                writer = cv2.VideoWriter(temp_path, fourcc, 30, (640, 480))
+                if writer.isOpened():
+                    working_codecs.append(codec_name)
+                    writer.release()
+                    # Clean up test file
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+            except:
+                pass
+        
+        if working_codecs:
+            print(f"✅ Working video codecs: {', '.join(working_codecs)}")
+        else:
+            print("❌ No working video codecs found")
+        
+        return len(working_codecs) > 0
+        
+    except ImportError:
+        print("❌ OpenCV (cv2) not installed")
+        print("   Try: pip install opencv-python")
+        return False
+    except Exception as e:
+        print(f"❌ Webcam compatibility test failed: {e}")
+        return False
+
 def test_tkinter_compatibility():
     """Test tkinter GUI compatibility"""
     print("\nTesting tkinter compatibility...")
@@ -198,7 +261,8 @@ def main():
         ("Platform Detection", test_platform_detection),
         ("Audio Device Detection", test_audio_device_detection),
         ("File Operations", test_file_operations),
-        ("Tkinter Compatibility", test_tkinter_compatibility),
+        ("Webcam Compatibility", test_webcam_compatibility),
+        ("Tkinter Compatibility", test_tkinter_compatibility)
     ]
     
     results = []
