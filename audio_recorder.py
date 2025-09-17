@@ -257,28 +257,12 @@ class AudioRecorderApp:
             self.progress['maximum'] = self.duration * 10  # Update every 0.1 seconds
             self.progress['value'] = 0
             
-            # Initialize webcam if available
-            webcam_thread = None
+            # New approach: Record video with audio synchronously if webcam available
             if self.webcam_available:
-                webcam_thread = threading.Thread(target=self.start_webcam_recording)
-                webcam_thread.daemon = True
-                webcam_thread.start()
-            
-            # Record audio
-            self.recording_data = sd.rec(int(self.duration * self.sample_rate), 
-                                       samplerate=self.sample_rate, 
-                                       channels=1, dtype=np.float32)
-            
-            # Update progress bar during recording
-            for i in range(self.duration * 10):
-                time.sleep(0.1)
-                self.progress['value'] = i + 1
-                
-            sd.wait()  # Wait until recording is finished
-            
-            # Stop webcam recording
-            if self.webcam_available and webcam_thread:
-                webcam_thread.join(timeout=1.0)  # Wait for webcam thread to finish
+                self.record_video_with_audio()
+            else:
+                # Record audio only
+                self.record_audio_only()
             
             # Save the recordings
             self.save_recording()
@@ -293,13 +277,15 @@ class AudioRecorderApp:
             self.progress['value'] = 0
             self.record_button.config(state='normal')
             
-    def start_webcam_recording(self):
-        """Record webcam video in parallel with audio"""
+    def record_video_with_audio(self):
+        """Record video and audio synchronously to avoid timing issues"""
         try:
             # Initialize webcam
             self.webcam = cv2.VideoCapture(0)
             if not self.webcam.isOpened():
                 print("Warning: Could not open webcam for recording")
+                # Fall back to audio only
+                self.record_audio_only()
                 return
             
             # Set webcam properties for better Windows compatibility
@@ -352,6 +338,8 @@ class AudioRecorderApp:
                 
                 if not self.video_writer or not self.video_writer.isOpened():
                     print("Warning: Could not initialize video writer with any codec")
+                    # Fall back to audio only
+                    self.record_audio_only()
                     return
             else:
                 # Use default codec for other platforms
@@ -361,9 +349,16 @@ class AudioRecorderApp:
             # Verify video writer is working
             if not self.video_writer.isOpened():
                 print("Warning: Video writer could not be initialized")
+                # Fall back to audio only
+                self.record_audio_only()
                 return
             
-            # Record video for the duration
+            # Start audio recording in the background
+            self.recording_data = sd.rec(int(self.duration * self.sample_rate), 
+                                       samplerate=self.sample_rate, 
+                                       channels=1, dtype=np.float32)
+            
+            # Record video for the duration - synchronized with audio
             start_time = time.time()
             frame_count = 0
             target_frames = fps * self.duration
@@ -377,12 +372,21 @@ class AudioRecorderApp:
                     # Handle frame read failures
                     print("Warning: Failed to read frame from webcam")
                     break
+                
+                # Update progress bar
+                progress_value = int((time.time() - start_time) * 10)
+                if progress_value <= self.duration * 10:
+                    self.progress['value'] = progress_value
+                
                 time.sleep(1.0 / fps)  # Maintain frame rate
+            
+            # Wait for audio recording to complete
+            sd.wait()
             
             print(f"Recorded {frame_count} video frames")
             
         except Exception as e:
-            error_msg = f"Error during webcam recording: {e}"
+            error_msg = f"Error during synchronized recording: {e}"
             print(error_msg)
             # On Windows, provide additional troubleshooting info
             if platform.system() == "Windows":
@@ -390,15 +394,36 @@ class AudioRecorderApp:
                 print("- Check camera permissions in Windows Settings")
                 print("- Close other apps using the camera")
                 print("- Try running as administrator")
+            # Fall back to audio only
+            self.record_audio_only()
         finally:
             # Cleanup webcam resources
-            if self.video_writer:
+            if hasattr(self, 'video_writer') and self.video_writer:
                 self.video_writer.release()
                 self.video_writer = None
-            if self.webcam:
+            if hasattr(self, 'webcam') and self.webcam:
                 self.webcam.release()
                 self.webcam = None
+    
+    def record_audio_only(self):
+        """Record audio only when no webcam is available"""
+        try:
+            # Record audio
+            self.recording_data = sd.rec(int(self.duration * self.sample_rate), 
+                                       samplerate=self.sample_rate, 
+                                       channels=1, dtype=np.float32)
             
+            # Update progress bar during recording
+            for i in range(self.duration * 10):
+                time.sleep(0.1)
+                self.progress['value'] = i + 1
+                
+            sd.wait()  # Wait until recording is finished
+            
+        except Exception as e:
+            print(f"Error during audio recording: {e}")
+            raise
+    
     def save_recording(self):
         """Save the recorded audio to a WAV file"""
         try:

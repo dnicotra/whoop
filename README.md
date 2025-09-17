@@ -166,5 +166,6 @@ This application includes several Windows-specific enhancements:
 - **Batch File Launcher**: `run_windows.bat` for easy startup without command line
 - **Windows Path Handling**: Proper directory creation and file path management
 - **Error Handling**: Windows-specific error messages and troubleshooting guidance
+- **Synchronized Recording**: Improved audio/video synchronization to eliminate timing delays on Windows
 
 The application has been tested for Windows compatibility and includes specific handling for common Windows issues.
