@@ -7,8 +7,9 @@ A simple Python GUI application using tkinter for recording audio with a countdo
 - Simple GUI with name input field and recording button
 - 3-second countdown before recording starts
 - 5-second audio recording
-- Saves recordings as WAV files with the provided name and timestamp
-- Creates a `recordings/` directory for storing audio files
+- **5-second webcam video recording (when webcam is available)**
+- Saves recordings as WAV (audio) and MP4 (video) files with the provided name and timestamp
+- Creates a `recordings/` directory for storing both audio and video files
 - **Cross-platform compatible: Windows, macOS, Linux**
 
 ## Requirements
@@ -17,7 +18,8 @@ A simple Python GUI application using tkinter for recording audio with a countdo
 - tkinter (usually comes with Python)
 - sounddevice
 - numpy
-- System audio dependencies (see installation below)
+- opencv-python (for webcam recording)
+- System audio and video dependencies (see installation below)
 
 ## Installation
 
@@ -51,7 +53,7 @@ pip3 install -r requirements.txt
 1. Install system dependencies:
 ```bash
 sudo apt update
-sudo apt install python3-tk pulseaudio portaudio19-dev
+sudo apt install python3-tk python3-opencv python3-numpy pulseaudio portaudio19-dev
 ```
 
 2. Install Python dependencies:
@@ -75,8 +77,10 @@ python audio_recorder.py
 1. Enter your name in the text field
 2. Click "Start Recording"
 3. Wait for the 3-second countdown
-4. Speak for 5 seconds when recording starts
-5. The recording will be saved automatically in the `recordings/` directory
+4. Speak and look at the camera for 5 seconds when recording starts
+5. Both audio (.wav) and video (.mp4) files will be saved automatically in the `recordings/` directory
+
+**Note:** If no webcam is detected, the application will run in audio-only mode.
 
 ## Troubleshooting
 
@@ -101,12 +105,21 @@ python audio_recorder.py
 - Make sure the application has write permissions in its directory
 - Try running from a folder in your user directory (not Program Files)
 
+**"No webcam detected" warning:**
+- Ensure your webcam is connected and not in use by other applications
+- Check Windows camera permissions: Settings → Privacy & Security → Camera
+- Test your camera with the Windows Camera app first
+
 ### General Issues
 
-**"ModuleNotFoundError" for sounddevice or numpy:**
-```cmd
-pip install --upgrade sounddevice numpy
-```
+**"ModuleNotFoundError" errors:**
+- For pip-installed packages: `pip install --upgrade sounddevice`
+- For system packages on Linux: `sudo apt install python3-opencv python3-numpy`
+
+**Webcam issues:**
+- Close other applications that might be using the camera (Zoom, Skype, etc.)
+- Try unplugging and reconnecting USB cameras
+- Check camera permissions in your operating system settings
 
 **Audio latency or quality issues:**
 - Close other audio applications
