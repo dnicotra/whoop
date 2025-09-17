@@ -56,24 +56,28 @@ def validate_audio_recorder():
             if isinstance(node, ast.FunctionDef):
                 methods.append(node.name)
                 
-        required_methods = ['setup_ui', 'start_recording_process', 'recording_thread', 'save_recording']
+        required_methods = ['setup_ui', 'start_recording_process', 'recording_thread', 'save_recording', 
+                          'play_last_recording', 'playback_thread']
         missing_methods = [method for method in required_methods if method not in methods]
         if missing_methods:
             print(f"❌ Missing methods: {missing_methods}")
             return False
         else:
-            print("✅ All required methods found")
+            print("✅ All required methods found (including new playback methods)")
             
         # Check for key features in content
         required_features = [
             'countdown',
             'recording_data',
             'sample_rate',
-            'duration = 5',
+            'duration_var',  # New configurable duration
             'threading.Thread',
             'sd.rec',
+            'sd.play',  # New playback functionality
             'wave.open',
-            'messagebox'
+            'messagebox',
+            'is_playing',  # New playback state
+            'last_recording_path'  # New playback feature
         ]
         
         missing_features = []
@@ -85,9 +89,9 @@ def validate_audio_recorder():
             print(f"❌ Missing features: {missing_features}")
             return False
         else:
-            print("✅ All required features found")
+            print("✅ All required features found (including new playback and configurable duration)")
             
-        print("✅ audio_recorder.py validation passed")
+        print("✅ audio_recorder.py validation passed with new features")
         return True
         
     except Exception as e:
@@ -192,12 +196,14 @@ def main():
         print("🎉 ALL VALIDATIONS PASSED!")
         print("\nThe audio recorder application is properly implemented with:")
         print("- Complete tkinter GUI with name input and record button")
+        print("- Configurable recording duration (1-30 seconds)")
         print("- 3-second countdown functionality")
-        print("- 5-second audio recording with sounddevice")
-        print("- File saving with user-provided names")
+        print("- Audio recording with sounddevice and progress feedback")
+        print("- Playback functionality for recorded files")
+        print("- File saving with user-provided names and timestamps")
         print("- Proper error handling and user feedback")
         print("- Complete documentation and requirements")
-        print("\nTo run the application:")
+        print("\nTo run the enhanced application:")
         print("  python3 audio_recorder.py")
     else:
         print("❌ Some validations failed. Check the output above.")

@@ -29,7 +29,7 @@ class AudioRecorderApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Audio Recorder")
-        self.root.geometry("400x300")
+        self.root.geometry("450x400")
         self.root.resizable(False, False)
         
         # Recording parameters
@@ -38,6 +38,8 @@ class AudioRecorderApp:
         self.countdown_time = 3  # seconds
         self.recording_data = None
         self.is_recording = False
+        self.is_playing = False
+        self.last_recording_path = None
         
         # Check audio device availability on startup
         self.check_audio_devices()
@@ -120,40 +122,58 @@ class AudioRecorderApp:
                                    width=30, font=("Arial", 11))
         self.name_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(0, 10))
         
+        # Recording duration selection
+        duration_label = ttk.Label(main_frame, text="Recording Duration (seconds):")
+        duration_label.grid(row=2, column=0, sticky=tk.W, pady=(0, 10))
+        
+        self.duration_var = tk.IntVar(value=5)
+        duration_spinbox = ttk.Spinbox(main_frame, from_=1, to=30, 
+                                      textvariable=self.duration_var,
+                                      width=10, font=("Arial", 11))
+        duration_spinbox.grid(row=2, column=1, sticky=tk.W, pady=(0, 10))
+        
         # Status display
         self.status_var = tk.StringVar(value="Enter your name and click 'Start Recording'")
         status_label = ttk.Label(main_frame, textvariable=self.status_var, 
                                 font=("Arial", 10))
-        status_label.grid(row=2, column=0, columnspan=2, pady=(20, 10))
+        status_label.grid(row=3, column=0, columnspan=2, pady=(20, 10))
         
         # Countdown display
         self.countdown_var = tk.StringVar(value="")
         self.countdown_label = ttk.Label(main_frame, textvariable=self.countdown_var, 
                                         font=("Arial", 24, "bold"), 
                                         foreground="red")
-        self.countdown_label.grid(row=3, column=0, columnspan=2, pady=(10, 20))
+        self.countdown_label.grid(row=4, column=0, columnspan=2, pady=(10, 20))
         
         # Record button
         self.record_button = ttk.Button(main_frame, text="Start Recording", 
                                        command=self.start_recording_process)
-        self.record_button.grid(row=4, column=0, columnspan=2, pady=(0, 20))
+        self.record_button.grid(row=5, column=0, pady=(0, 20))
+        
+        # Playback button
+        self.playback_button = ttk.Button(main_frame, text="Play Last Recording", 
+                                         command=self.play_last_recording, 
+                                         state='disabled')
+        self.playback_button.grid(row=5, column=1, pady=(0, 20))
         
         # Progress bar for recording
         self.progress = ttk.Progressbar(main_frame, length=300, mode='determinate')
-        self.progress.grid(row=5, column=0, columnspan=2, pady=(0, 10))
+        self.progress.grid(row=6, column=0, columnspan=2, pady=(0, 10))
         
         # Instructions
         instructions = ("Instructions:\n"
                        "1. Enter your name in the text field\n"
-                       "2. Click 'Start Recording'\n"
-                       "3. Wait for the countdown to finish\n"
-                       "4. Recording will start automatically for 5 seconds\n"
-                       "5. File will be saved with your name")
+                       "2. Choose recording duration (1-30 seconds)\n"
+                       "3. Click 'Start Recording'\n"
+                       "4. Wait for the countdown to finish\n"
+                       "5. Recording will start automatically\n"
+                       "6. File will be saved with your name\n"
+                       "7. Use 'Play Last Recording' to listen")
         
         instructions_label = ttk.Label(main_frame, text=instructions, 
                                       font=("Arial", 9), 
                                       justify=tk.LEFT)
-        instructions_label.grid(row=6, column=0, columnspan=2, pady=(20, 0))
+        instructions_label.grid(row=7, column=0, columnspan=2, pady=(20, 0))
         
     def start_recording_process(self):
         """Start the recording process with countdown"""
@@ -178,6 +198,9 @@ class AudioRecorderApp:
     def recording_thread(self):
         """Handle countdown and recording in a separate thread"""
         try:
+            # Get the selected duration
+            duration = self.duration_var.get()
+            
             # Countdown phase
             self.status_var.set("Get ready! Recording will start in...")
             
@@ -188,20 +211,20 @@ class AudioRecorderApp:
             self.countdown_var.set("")
             
             # Recording phase
-            self.status_var.set("🔴 RECORDING... Speak now!")
+            self.status_var.set(f"🔴 RECORDING... Speak now! ({duration}s)")
             self.is_recording = True
             
             # Start progress bar
-            self.progress['maximum'] = self.duration * 10  # Update every 0.1 seconds
+            self.progress['maximum'] = duration * 10  # Update every 0.1 seconds
             self.progress['value'] = 0
             
             # Record audio
-            self.recording_data = sd.rec(int(self.duration * self.sample_rate), 
+            self.recording_data = sd.rec(int(duration * self.sample_rate), 
                                        samplerate=self.sample_rate, 
                                        channels=1, dtype=np.float32)
             
             # Update progress bar during recording
-            for i in range(self.duration * 10):
+            for i in range(duration * 10):
                 time.sleep(0.1)
                 self.progress['value'] = i + 1
                 
@@ -251,6 +274,10 @@ class AudioRecorderApp:
                 
             self.status_var.set(f"✅ Recording saved as: {filename}")
             
+            # Store the path for playback
+            self.last_recording_path = filepath
+            self.playback_button.config(state='normal')
+            
             # Show success message with full path for clarity
             success_msg = f"Recording saved successfully!\nFile: {filename}\nLocation: {recordings_dir}"
             messagebox.showinfo("Success", success_msg)
@@ -259,6 +286,70 @@ class AudioRecorderApp:
             error_msg = f"Failed to save recording: {str(e)}"
             self.status_var.set("❌ Save failed - check console")
             messagebox.showerror("Error", error_msg)
+            
+    def play_last_recording(self):
+        """Play the last recorded audio file"""
+        if not self.last_recording_path or not os.path.exists(self.last_recording_path):
+            messagebox.showerror("Error", "No recording found to play!")
+            return
+            
+        if self.is_playing:
+            messagebox.showinfo("Info", "Already playing a recording!")
+            return
+            
+        try:
+            # Read the WAV file
+            with wave.open(self.last_recording_path, 'rb') as wf:
+                frames = wf.readframes(wf.getnframes())
+                sample_rate = wf.getframerate()
+                channels = wf.getnchannels()
+                sampwidth = wf.getsampwidth()
+                
+            # Convert bytes to numpy array
+            if sampwidth == 2:  # 16-bit
+                audio_data = np.frombuffer(frames, dtype=np.int16)
+            else:
+                messagebox.showerror("Error", "Unsupported audio format for playback")
+                return
+                
+            # Convert to float32 for sounddevice
+            audio_data = audio_data.astype(np.float32) / 32767.0
+            
+            # Reshape for mono/stereo
+            if channels == 2:
+                audio_data = audio_data.reshape(-1, 2)
+                
+            # Start playback in a separate thread
+            playback_thread = threading.Thread(
+                target=self.playback_thread, 
+                args=(audio_data, sample_rate)
+            )
+            playback_thread.daemon = True
+            playback_thread.start()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Playback failed: {str(e)}")
+            
+    def playback_thread(self, audio_data, sample_rate):
+        """Handle audio playback in a separate thread"""
+        try:
+            self.is_playing = True
+            self.playback_button.config(state='disabled')
+            self.record_button.config(state='disabled')
+            self.status_var.set("🔊 Playing recording...")
+            
+            # Play the audio
+            sd.play(audio_data, samplerate=sample_rate)
+            sd.wait()  # Wait until playback is finished
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Playback error: {str(e)}")
+        finally:
+            # Reset UI
+            self.is_playing = False
+            self.playback_button.config(state='normal')
+            self.record_button.config(state='normal')
+            self.status_var.set("Enter your name and click 'Start Recording'")
 
 
 def main():

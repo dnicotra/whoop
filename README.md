@@ -5,10 +5,12 @@ A simple Python GUI application using tkinter for recording audio with a countdo
 ## Features
 
 - Simple GUI with name input field and recording button
+- **Configurable recording duration (1-30 seconds)**
 - 3-second countdown before recording starts
-- 5-second audio recording
+- **Audio playback of recorded files**
 - Saves recordings as WAV files with the provided name and timestamp
 - Creates a `recordings/` directory for storing audio files
+- **Enhanced user interface with intuitive controls**
 - **Cross-platform compatible: Windows, macOS, Linux**
 
 ## Requirements
@@ -73,10 +75,12 @@ python audio_recorder.py
 
 ### How to use:
 1. Enter your name in the text field
-2. Click "Start Recording"
-3. Wait for the 3-second countdown
-4. Speak for 5 seconds when recording starts
-5. The recording will be saved automatically in the `recordings/` directory
+2. **Choose your preferred recording duration (1-30 seconds)**
+3. Click "Start Recording"
+4. Wait for the 3-second countdown
+5. **Speak for the selected duration when recording starts**
+6. The recording will be saved automatically in the `recordings/` directory
+7. **Click "Play Last Recording" to listen to your recording**
 
 ## Troubleshooting
 
@@ -133,3 +137,23 @@ This application includes several Windows-specific enhancements:
 - **Error Handling**: Windows-specific error messages and troubleshooting guidance
 
 The application has been tested for Windows compatibility and includes specific handling for common Windows issues.
+
+## New Features
+
+### 🎵 Audio Playback
+- Play back your recordings immediately after saving
+- "Play Last Recording" button becomes available after first recording
+- Safe playback with proper thread handling
+- Prevents multiple simultaneous playbacks
+
+### ⏱️ Configurable Recording Duration
+- Choose recording length from 1 to 30 seconds
+- Default remains 5 seconds for familiar experience
+- Progress bar automatically adjusts to selected duration
+- Clear visual feedback during recording
+
+### 🎨 Enhanced User Interface
+- Larger window (450x400) for better layout
+- Side-by-side record and playback buttons
+- Clear duration selection with spinbox control
+- Updated instructions reflecting all features
